@@ -20,4 +20,9 @@ public class FoodCourtAdapter implements IOrderPort {
     public Long getCustomerIdFromOrder(Long orderId) {
         return foodCourtFeignClient.getCustomerIdFromOrder(orderId);
     }
+
+    @Override
+    public Integer cancelOrder(Long id) {
+        return foodCourtFeignClient.cancelOrder(id);
+    }
 }

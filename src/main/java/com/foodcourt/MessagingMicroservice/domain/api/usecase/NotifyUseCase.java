@@ -3,6 +3,7 @@ package com.foodcourt.MessagingMicroservice.domain.api.usecase;
 import com.foodcourt.MessagingMicroservice.domain.api.INotifyServicePort;
 import com.foodcourt.MessagingMicroservice.domain.exception.CustomerNotFoundException;
 import com.foodcourt.MessagingMicroservice.domain.exception.InvalidPinException;
+import com.foodcourt.MessagingMicroservice.domain.exception.UserNotValidException;
 import com.foodcourt.MessagingMicroservice.domain.model.Notify;
 import com.foodcourt.MessagingMicroservice.domain.spi.IMessagePort;
 import com.foodcourt.MessagingMicroservice.domain.spi.INotifyPersistencePort;
@@ -10,6 +11,8 @@ import com.foodcourt.MessagingMicroservice.domain.spi.IOrderPort;
 import com.foodcourt.MessagingMicroservice.domain.spi.IUserPort;
 import com.foodcourt.MessagingMicroservice.domain.util.Constants;
 import com.foodcourt.MessagingMicroservice.domain.util.MessageBuilder;
+
+import java.util.Objects;
 
 public class NotifyUseCase implements INotifyServicePort {
     private final IUserPort userPort;
@@ -52,6 +55,22 @@ public class NotifyUseCase implements INotifyServicePort {
             throw new InvalidPinException(Constants.INVALID_PIN_ERROR_MESSAGE);
         }
     }
+
+    @Override
+    public void cancelOrder(Long orderId, Long userId) {
+        Long customerId = orderPort.getCustomerIdFromOrder(orderId);
+        if(!Objects.equals(userId, customerId)){
+            throw new UserNotValidException(Constants.USER_NOT_OWNER_OF_ERROR_MESSAGE);
+        }
+        String phoneNumber = userPort.getCustomerPhoneNumberById(userId);
+        Integer cancelFlag = orderPort.cancelOrder(orderId);
+
+        if(Objects.equals(cancelFlag, Constants.CANCELLATION_WENT_THROUGH_FLAG)){
+            messagePort.sendMessage(phoneNumber, Constants.ORDER_CANCELLED_MESSAGE);
+        } else if(Objects.equals(cancelFlag, Constants.CANCELLATION_DID_NOT_GO_THROUGH_FLAG)){
+            messagePort.sendMessage(phoneNumber, Constants.ORDER_CANNOT_BE_CANCELLED_MESSAGE);
+        }
     }
+}
 
 

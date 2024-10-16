@@ -16,4 +16,6 @@ public interface IFoodCourtFeignClient {
     void updateOrderStatus(@PathVariable Long orderId, @RequestParam String status);
     @GetMapping(value = AdaptersConstants.FOOD_COURT_GET_CUSTOMER_ID_FROM_ORDER_URL)
     Long getCustomerIdFromOrder(@PathVariable Long orderId);
+    @PostMapping(value = AdaptersConstants.FOOD_COURT_CANCEL_ORDER_URL)
+    Integer cancelOrder(@PathVariable Long orderId);
 }

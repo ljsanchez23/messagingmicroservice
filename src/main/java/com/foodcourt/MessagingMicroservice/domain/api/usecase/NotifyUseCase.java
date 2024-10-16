@@ -2,6 +2,7 @@ package com.foodcourt.MessagingMicroservice.domain.api.usecase;
 
 import com.foodcourt.MessagingMicroservice.domain.api.INotifyServicePort;
 import com.foodcourt.MessagingMicroservice.domain.exception.CustomerNotFoundException;
+import com.foodcourt.MessagingMicroservice.domain.exception.InvalidPinException;
 import com.foodcourt.MessagingMicroservice.domain.model.Notify;
 import com.foodcourt.MessagingMicroservice.domain.spi.IMessagePort;
 import com.foodcourt.MessagingMicroservice.domain.spi.INotifyPersistencePort;
@@ -24,7 +25,7 @@ public class NotifyUseCase implements INotifyServicePort {
     }
 
     @Override
-    public void notifyOrder(Long orderId) {
+    public void notifyOrderReady(Long orderId) {
         Long customerId = orderPort.getCustomerIdFromOrder(orderId);
         String phoneNumber = userPort.getCustomerPhoneNumberById(customerId);
         if(customerId == null){
@@ -37,4 +38,20 @@ public class NotifyUseCase implements INotifyServicePort {
         Notify notify = new Notify(phoneNumber, message);
         notifyPersistencePort.saveNotify(notify);
     }
-}
+
+    @Override
+    public void notifyOrderCompleted(Long orderId, String securityPin) {
+        Long customerId = orderPort.getCustomerIdFromOrder(orderId);
+
+        String phoneNumber = userPort.getCustomerPhoneNumberById(customerId);
+
+        if (notifyPersistencePort.isPinAndPhoneValid(securityPin, phoneNumber)) {
+            orderPort.updateOrderStatus(orderId, Constants.DELIVERED_STATUS);
+            messagePort.sendMessage(phoneNumber, Constants.ORDER_DELIVERED_MESSAGE_CONFIRMATION);
+        } else {
+            throw new InvalidPinException(Constants.INVALID_PIN_ERROR_MESSAGE);
+        }
+    }
+    }
+
+

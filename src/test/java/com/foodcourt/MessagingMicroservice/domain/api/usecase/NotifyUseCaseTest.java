@@ -1,6 +1,7 @@
 package com.foodcourt.MessagingMicroservice.domain.api.usecase;
 
 import com.foodcourt.MessagingMicroservice.domain.exception.CustomerNotFoundException;
+import com.foodcourt.MessagingMicroservice.domain.exception.InvalidPinException;
 import com.foodcourt.MessagingMicroservice.domain.model.Notify;
 import com.foodcourt.MessagingMicroservice.domain.spi.IMessagePort;
 import com.foodcourt.MessagingMicroservice.domain.spi.INotifyPersistencePort;
@@ -53,7 +54,7 @@ class NotifyUseCaseTest {
         try (MockedStatic<MessageBuilder> mockedStatic = mockStatic(MessageBuilder.class)) {
             mockedStatic.when(() -> MessageBuilder.buildMessage(TestConstants.PHONE_NUMBER)).thenReturn(expectedNotify);
 
-            notifyUseCase.notifyOrder(TestConstants.ORDER_ID);
+            notifyUseCase.notifyOrderReady(TestConstants.ORDER_ID);
 
             ArgumentCaptor<Notify> notifyCaptor = ArgumentCaptor.forClass(Notify.class);
             verify(notifyPersistencePort).saveNotify(notifyCaptor.capture());
@@ -72,7 +73,7 @@ class NotifyUseCaseTest {
 
         CustomerNotFoundException exception = assertThrows(
                 CustomerNotFoundException.class,
-                () -> notifyUseCase.notifyOrder(TestConstants.ORDER_ID)
+                () -> notifyUseCase.notifyOrderReady(TestConstants.ORDER_ID)
         );
 
         assertEquals(Constants.CUSTOMER_NOT_FOUND, exception.getMessage());
@@ -80,5 +81,46 @@ class NotifyUseCaseTest {
         verify(orderPort, never()).updateOrderStatus(anyLong(), anyString());
         verify(messagePort, never()).sendMessage(anyString(), anyString());
         verify(notifyPersistencePort, never()).saveNotify(any(Notify.class));
+    }
+
+    @Test
+    @DisplayName(TestConstants.SHOULD_UPDATE_STATUS_WHEN_PARAMS_ARE_VALID)
+    void shouldUpdateStatusAndSendMessageWhenPinAndPhoneNumberAreValid() {
+        Long orderId = TestConstants.ORDER_ID;
+        String securityPin = TestConstants.VALID_PIN;
+        Long customerId = TestConstants.VALID_CUSTOMER_ID;
+        String phoneNumber = TestConstants.VALID_PHONE_NUMBER;
+
+        when(orderPort.getCustomerIdFromOrder(orderId)).thenReturn(customerId);
+        when(userPort.getCustomerPhoneNumberById(customerId)).thenReturn(phoneNumber);
+        when(notifyPersistencePort.isPinAndPhoneValid(securityPin, phoneNumber)).thenReturn(true);
+
+        notifyUseCase.notifyOrderCompleted(orderId, securityPin);
+
+        verify(orderPort).updateOrderStatus(orderId, Constants.DELIVERED_STATUS);
+        verify(messagePort).sendMessage(phoneNumber, Constants.ORDER_DELIVERED_MESSAGE_CONFIRMATION);
+    }
+
+    @Test
+    @DisplayName(TestConstants.SHOULD_THROW_EXCEPTION_WHEN_PIN_IS_NOT_VALID)
+    void shouldThrowInvalidPinExceptionWhenPinIsInvalid() {
+        Long orderId = TestConstants.ORDER_ID;
+        String securityPin = TestConstants.VALID_PIN;
+        Long customerId = TestConstants.VALID_CUSTOMER_ID;
+        String phoneNumber = TestConstants.VALID_PHONE_NUMBER;
+
+        when(orderPort.getCustomerIdFromOrder(orderId)).thenReturn(customerId);
+        when(userPort.getCustomerPhoneNumberById(customerId)).thenReturn(phoneNumber);
+        when(notifyPersistencePort.isPinAndPhoneValid(securityPin, phoneNumber)).thenReturn(false);
+
+        InvalidPinException exception = assertThrows(
+                InvalidPinException.class,
+                () -> notifyUseCase.notifyOrderCompleted(orderId, securityPin)
+        );
+
+        assertEquals(Constants.INVALID_PIN_ERROR_MESSAGE, exception.getMessage());
+
+        verify(orderPort, never()).updateOrderStatus(anyLong(), anyString());
+        verify(messagePort, never()).sendMessage(anyString(), anyString());
     }
 }

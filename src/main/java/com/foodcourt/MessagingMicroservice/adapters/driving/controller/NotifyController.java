@@ -8,10 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(AdaptersConstants.NOTIFY_CONTROLLER_URL)
@@ -27,7 +24,13 @@ public class NotifyController {
     })
     @PostMapping(AdaptersConstants.NOTIFY_READY_ENDPOINT)
     public ResponseEntity<Void> notifyOrderReady(@PathVariable Long orderId){
-        notifyServicePort.notifyOrder(orderId);
+        notifyServicePort.notifyOrderReady(orderId);
+        return ResponseEntity.status(HttpStatus.OK).build();
+    }
+
+    @PostMapping(AdaptersConstants.NOTIFY_DELIVERED_ENDPOINT)
+    public ResponseEntity<Void> notifyOrderCompleted(@PathVariable Long orderId, @RequestParam String securityPin){
+        notifyServicePort.notifyOrderCompleted(orderId, securityPin);
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 }
